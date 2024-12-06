@@ -1,127 +1,138 @@
-const COHORT = "2409-GHP-ET-WEB-PT";
-const API_URL = `https://fsa-crud-2aa9294fe819.herokuapp.com/api/${COHORT}/events`;
+const COHORT = '2409-GHP-ET-WEB-PT';
+const BASE_URL = 'https://fsa-crud-2aa9294fe819.herokuapp.com/api/' + COHORT;
 
-// === State ===
-
+/***** STATE *****/
 const state = {
   events: [],
 };
 
-/** Updates state with events from API */
-async function getEvents() {
+/***** REFERENCES *****/
+const form = document.getElementById('partyForm');
+const eventList = document.getElementById('partyList');
+
+/***** ASYNC FUNCTIONS *****/
+// Fetch is used correctly to GET party data from the API.
+async function getParties() {
   try {
-    const promise = await fetch(API_URL);
-    const response = await promise.json();
-    if (!response.success) {
-      throw response.error;
-    }
-    state.events = response.data;
-  } catch (error) {
-    alert("Unable to load Events");
+    const response = await fetch(`${BASE_URL}/events`);
+    // Parse the response
+    const json = await response.json();
+    // The data stored in state is updated to stay in sync with the API
+    state.events = json.data;
+  } catch (err) {
+    console.log(err);
   }
 }
 
-/** Asks the API to create a new artist based on the given `artist` */
-async function addArtist(artist) {
+// Fetch is used correctly to POST a new party to the API.
+async function createParty(newPartyInfo) {
   try {
-    const response = await fetch(API_URL, {
-      method: "POST",
+    const response = await fetch(`${BASE_URL}/events`, {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(artist),
+      body: JSON.stringify(newPartyInfo),
     });
-    if (!response.ok) {
-      throw new Error(
-        "Unable to add artist due to Http error: " + response.status
-      );
+    const json = await response.json();
+
+    // Notice the error property on the response schema in the API documentation: https://fsa-crud-2aa9294fe819.herokuapp.com/api/
+    if (json.error) {
+      throw new Error(json.message);
     }
-  } catch (error) {
-    alert(error.message);
-  }
-}
-/** Asks the API to delete the given artist */
-async function deleteArtist(artist) {
-  try {
-    const response = await fetch(API_URL + "/" + artist.id, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(
-        "Unable to delete artist due to Http error: " + response.status
-      );
-    }
+
+    // Making a call to the API doesn't actually change the client state,
+    // so we'll need to refetch the data and re-render
     render();
-  } catch (error) {
-    alert(error.message);
+  } catch (err) {
+    console.log(err);
   }
 }
 
-// === Render ===
-
-/** Renders artists from state */
-function renderArtists() {
-  const artistList = document.querySelector("#artists");
-
-  if (!state.artists.length) {
-    artistList.innerHTML = "<li>No artists.</li>";
-    return;
-  }
-
-  const artistCards = state.artists.map((artist) => {
-    const card = document.createElement("li");
-    //H1 for Artist Name
-    const h1 = document.createElement("h1");
-    h1.textContent = artist.name;
-
-    //H2 for Artist Description
-    const h2 = document.createElement("h2");
-    h2.textContent = artist.description;
-
-    //Image of Artist
-    const image = document.createElement("img");
-    image.src = artist.imageUrl; //set the img src to be the imageUrl from the artist object
-    image.style.width = "50%";
-    image.style.height = "50%";
-
-    //Button to Delete the Artist
-    const deleteButton = document.createElement("button");
-    deleteButton.textContent = "Delete";
-    deleteButton.style.display = "block";
-    deleteButton.addEventListener("click", async () => {
-      await deleteArtist(artist);
+// Fetch is used correctly to DELETE a party from the API.
+// The event listener is attached to a rendered button so the correct event is deleted
+async function deleteParty(id) {
+  try {
+    const response = await fetch(`${BASE_URL}/events/${id}`, {
+      method: 'DELETE',
     });
 
-    card.append(h1, h2, image, deleteButton);
-    return card;
+    // Handling errors differently here since a successful deletion only sends back a status code
+    if (!response.ok) {
+      throw new Error('Event could not be deleted.');
+    }
+
+    render();
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+/***** EVENT LISTENERS *****/
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    // Format event date to ISO Date string
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString
+    const eventDate = new Date(form.eventDate.value).toISOString();
+
+    const newParty = {
+      name: form.eventName.value,
+      description: form.eventDescription.value,
+      date: eventDate,
+      location: form.eventLocation.value,
+    };
+    // Post to endpoint with current form values to create and add an event
+    await createParty(newParty);
+
+    // Clear form inputs
+    form.reset();
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+/***** RENDER *****/
+// Sync state with the API and re-render to update UI
+async function render() {
+  // Fetch events data from endpoint
+  await getParties();
+  // Render to update UI with new data
+  renderEvents();
+}
+
+// The app contains a list of the names, dates, times, locations, and descriptions of all parties
+function renderEvents() {
+  const eventElements = state.events.map((event) => {
+    // Format Date ISO string to readable
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString
+    const eventDate = new Date(event.date).toLocaleString();
+    // Each party in the list has a delete button which removes the party when clicked
+    const eventCard = document.createElement('section');
+    eventCard.innerHTML = `
+      <div>
+        <h3>${event.name}</h3>
+        <p>${event.description}</p>
+        <p>${eventDate}</p>
+        <p>${event.location}</p>
+      </div>
+    `;
+
+    // Use createElement because we need to attach an event listener
+    const deleteButton = document.createElement('button');
+    deleteButton.innerText = 'Delete Event';
+    // Append button to event card section
+    eventCard.append(deleteButton);
+    // Attach event listener to button so the correct event is deleted
+    // How does this button have reference to the correct event id?
+    // It has to do with closure: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures
+    deleteButton.addEventListener('click', () => deleteParty(event.id));
+
+    return eventCard;
   });
 
-  artistList.replaceChildren(...artistCards);
-}
-/** Syncs state with the API and rerender */
-async function render() {
-  await getArtists();
-  renderArtists();
+  eventList.replaceChildren(...eventElements);
 }
 
-// === Script ===
-
+// Initial render
 render();
-
-// Add listener to form
-const form = document.getElementById("addArtist");
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const artist = {
-    name: form.artistName.value,
-    description: form.description.value,
-    imageUrl: form.imageUrl.value,
-  };
-
-  await addArtist(artist);
-  render();
-});
