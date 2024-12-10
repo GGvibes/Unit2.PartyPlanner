@@ -1,6 +1,6 @@
 const COHORT = "2409-GHP-ET-WEB-PT";
 const API_URL =
-  "https://fsa-crud-2aa9294fe819.herokuapp.com/api/${COHORT}/events/";
+  "https://fsa-crud-2aa9294fe819.herokuapp.com/api/" + COHORT;
 
 const state = {
   events: [],
@@ -92,8 +92,10 @@ function renderEvents() {
     deleteButton.innerText = "Delete Event";
     eventCard.append(deleteButton);
     deleteButton.addEventListener("click", () => deleteParty(event.id));
+    return eventCard;
   });
-  return eventCard;
+
+  eventList.replaceChildren(...eventDetails);
 }
 
 render();
