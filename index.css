@@ -1,0 +1,27 @@
+* {
+  font-family: Verdana, Geneva, Tahoma, sans-serif, sans-serif;
+  font-weight: 550;
+}
+
+body {
+  margin: 20px 40px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 15px;
+}
+
+form input {
+  margin-bottom: 1 px;
+}
+
+form input,
+form label,
+form button {
+  width: 60%;
+}
